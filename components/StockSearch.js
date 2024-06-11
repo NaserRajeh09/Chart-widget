@@ -3,6 +3,7 @@ import { useRecoilState } from 'recoil';
 import debounce from 'lodash.debounce';
 import { searchStockSymbol } from '../utils/api';
 import { selectedStockSymbolState } from '../atoms';
+import './StockSearch.css';
 
 const StockSearch = () => {
     const [query, setQuery] = useState('');
@@ -44,19 +45,22 @@ const StockSearch = () => {
                 className="search-input"
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    handleSearch(e.target.value);
+                }}
                 placeholder="Search for a stock..."
             />
             {isLoading && <div className="loading-indicator">Loading...</div>}
             {error && <div className="error-message">{error}</div>}
             {results.length > 0 && (
-                <ul className="suggestions-list">
+                <div className="search-dropdown">
                     {results.map((result) => (
-                        <li key={result.symbol} onClick={() => handleSelect(result.symbol)}>
+                        <div key={result.symbol} className="search-dropdown-item" onClick={() => handleSelect(result.symbol)}>
                             {result.name} ({result.symbol})
-                        </li>
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
         </div>
     );

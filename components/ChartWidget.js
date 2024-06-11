@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRecoilState } from 'recoil';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Bar, Label } from 'recharts';
+import { 
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+    ComposedChart, Line, BarChart, Bar 
+} from 'recharts';
 import { stockState, selectedTimeframeState, selectedStockSymbolState } from '../state/stockState';
 import { fetchStockData, searchStockSymbol } from '../utils/api';
 import './ChartWidget.css';
+import { ImCoinDollar } from "react-icons/im";
 
 const timeframes = [
     { label: '1 Day', value: '1d' },
@@ -21,7 +25,9 @@ const ChartWidget = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [stockName, setStockName] = useState(''); // New state for stock name
+
+    const [stockName, setStockName] = useState('');
+    const [currentPrice, setCurrentPrice] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -30,9 +36,16 @@ const ChartWidget = () => {
                 setError(null);
                 try {
                     const data = await fetchStockData(selectedStockSymbol, selectedTimeframe);
-                    setStocks(data);
-                    const stockInfo = searchResults.find(result => result.symbol === selectedStockSymbol);
-                    setStockName(stockInfo ? stockInfo.name : ''); // Update the stock name
+                    
+                    const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    console.log('Fetched and sorted data:', sortedData);
+
+                    setStocks(sortedData);
+
+                    if (data.length > 0) {
+                        setStockName(selectedStockSymbol);
+                        setCurrentPrice(data[data.length - 1].close);
+                    }
                 } catch (err) {
                     console.error('Error fetching stock data:', err);
                     setError('Failed to fetch stock data. Please try again.');
@@ -42,7 +55,7 @@ const ChartWidget = () => {
             }
         };
         fetchData();
-    }, [selectedStockSymbol, selectedTimeframe, setStocks, searchResults]);
+    }, [selectedStockSymbol, selectedTimeframe, setStocks]);
 
     const handleSearch = async (event) => {
         const value = event.target.value;
@@ -68,63 +81,82 @@ const ChartWidget = () => {
 
     return (
         <div className="chart-widget">
-            <div className="search-area">
-                <input
-                    type="text"
-                    className="search-input"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    placeholder="Search for a stock..."
-                />
+            <div className="search-bar">
+                <input type="text" value={searchTerm} onChange={handleSearch} placeholder="Search for a stock..." />
                 {searchResults.length > 0 && (
-                    <div className="search-dropdown">
-                        {searchResults.map((result) => (
-                            <div
-                                key={result.symbol}
-                                className="search-dropdown-item"
-                                onClick={() => handleSelectStock(result.symbol)}
-                            >
+                    <ul className="search-results">
+                        {searchResults.map(result => (
+                            <li key={result.symbol} onClick={() => handleSelectStock(result.symbol)}>
                                 {result.name} ({result.symbol})
-                            </div>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 )}
+                <div className="timeframe-buttons">
+                    {timeframes.map((timeframe) => (
+                        <button
+                            key={timeframe.value}
+                            className={`timeframe-button ${selectedTimeframe === timeframe.value ? 'active' : ''}`}
+                            onClick={() => setSelectedTimeframe(timeframe.value)}
+                        >
+                            {timeframe.label}
+                        </button>
+                    ))}
+                </div>
             </div>
-            <div className="timeframe-buttons">
-                {timeframes.map((tf) => (
-                    <button
-                        key={tf.value}
-                        onClick={() => setSelectedTimeframe(tf.value)}
-                        className={`timeframe-button ${selectedTimeframe === tf.value ? 'active' : ''}`}
-                    >
-                        {tf.label}
-                    </button>
-                ))}
-            </div>
+
+            {selectedStockSymbol && (
+                <div className="stock-details">
+                    <h2>
+                        <ImCoinDollar style={{ marginRight: '8px' }} />
+                        {stockName}
+                    </h2>
+                    {currentPrice !== null && <p>Current Price: ${currentPrice.toFixed(2)}</p>}
+                </div>
+            )}
+
             {isLoading ? (
-                <div className="loading-indicator">Loading...</div>
+                <p>Loading...</p>
             ) : error ? (
-                <div className="error-message">{error}</div>
-            ) : stocks.length > 0 ? (
-                <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={stocks}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date">
-                            <Label value={stockName} offset={-10} position="insideTopLeft" />
-                        </XAxis>
-                        <YAxis yAxisId="left" />
-                        <YAxis yAxisId="right" orientation="right" />
-                        <Tooltip />
-                        <Legend />
-                        <Line yAxisId="left" type="monotone" dataKey="open" stroke="#8884d8" activeDot={{ r: 8 }} />
-                        <Line yAxisId="left" type="monotone" dataKey="high" stroke="#82ca9d" />
-                        <Line yAxisId="left" type="monotone" dataKey="low" stroke="#ff7300" />
-                        <Line yAxisId="left" type="monotone" dataKey="close" stroke="#ff0000" />
-                        <Bar yAxisId="right" dataKey="volume" fill="#8884d8" />
-                    </LineChart>
-                </ResponsiveContainer>
+                <p className="error">{error}</p>
             ) : (
-                <div className="no-data">No data available</div>
+                <>
+                    <div style={{ width: '100%', height: '400px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={stocks}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Line
+                                    type="monotone"
+                                    dataKey="close"
+                                    stroke="#8884d8"
+                                    strokeWidth={2}
+                                    dot={false}
+                                />
+                                <Line type="monotone" dataKey="open" stroke="#8884d8" activeDot={{ r: 8 }} />
+                                <Line type="monotone" dataKey="high" stroke="#82ca9d" />
+                                <Line type="monotone" dataKey="low" stroke="#ff7300" />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div style={{ width: '100%', height: '150px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stocks}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Bar dataKey="volume" fill="#82ca9d" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </>
+            )}
+
+            {stocks.length === 0 && !isLoading && !error && (
+                <div className="no-data">No data available for the selected stock and timeframe.</div>
             )}
         </div>
     );

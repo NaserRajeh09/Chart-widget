@@ -1,33 +1,37 @@
-.search-container {
+/* General styling for the search box */
+.search-box {
     position: relative;
-    width: 300px;
+    width: 100%;
 }
 
+/* Styling for the search input */
 .search-input {
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
 }
 
-.suggestions-list {
+/* Dropdown menu styling */
+.search-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     width: 100%;
-    border: 1px solid #ccc;
-    border-top: none;
-    background: white;
-    z-index: 1000;
     max-height: 200px;
     overflow-y: auto;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    z-index: 1000;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.suggestions-list li {
-    padding: 8px;
+.search-dropdown-item {
+    padding: 10px;
     cursor: pointer;
+    transition: background-color 0.3s;
 }
 
-.suggestions-list li:hover {
-    background: #f0f0f0;
+.search-dropdown-item:hover {
+    background-color: #f1f1f1;
 }

@@ -1,89 +1,69 @@
-// src/components/StockChart.js
+import React, { useState, useCallback } from 'react';
+import { useRecoilState } from 'recoil';
+import debounce from 'lodash.debounce';
+import { searchStockSymbol } from '../utils/api';
+import { selectedStockSymbolState } from '../atoms';
+import './StockSearch.css';
 
-import React from 'react';
-import { useRecoilValue } from 'recoil';
-import { stockDataSelector } from '../state/stockState';
-import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+const StockSearch = () => {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [selectedStockSymbol, setSelectedStockSymbol] = useRecoilState(selectedStockSymbolState);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-// Register required Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
+    const handleSearch = useCallback(
+        debounce(async (query) => {
+            if (query.length > 0) {
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const searchResults = await searchStockSymbol(query);
+                    setResults(searchResults);
+                } catch (err) {
+                    console.error('Error fetching search results:', err);
+                    setError('Failed to fetch search results. Please try again.');
+                } finally {
+                    setIsLoading(false);
+                }
+            } else {
+                setResults([]);
+            }
+        }, 300),
+        []
+    );
 
-const StockChart = () => {
-  const stockData = useRecoilValue(stockDataSelector);
+    const handleSelect = (symbol) => {
+        setSelectedStockSymbol(symbol);
+        setResults([]);
+        setQuery('');
+    };
 
-  // Extracting chart data
-  const labels = stockData.map(data => data.date);
-  const prices = stockData.map(data => data.close);
-  const volumes = stockData.map(data => data.volume);
-  // Chart data configuration
-  const data = {
-    labels,
-    datasets: [
-      {
-        label: 'Stock Price',
-        data: prices,
-        borderColor: 'rgba(75,192,192,1)',
-        backgroundColor: 'rgba(75,192,192,0.2)',
-        yAxisID: 'y-axis-1',
-        type: 'line',
-      },
-      {
-        label: 'Volume',
-        data: volumes,
-        backgroundColor: 'rgba(153, 102, 255, 0.5)',
-        yAxisID: 'y-axis-2',
-        type: 'bar',
-      },
-    ],
-  };
-
-  // Chart options for dual-axis
-  const options = {
-    responsive: true,
-    scales: {
-      'y-axis-1': {
-        type: 'linear',
-        position: 'left',
-        title: {
-          display: true,
-          text: 'Stock Price',
-        },
-      },
-      'y-axis-2': {
-        type: 'linear',
-        position: 'right',
-        title: {
-          display: true,
-          text: 'Volume',
-        },
-        grid: {
-          drawOnChartArea: false, // Hide grid lines for the volume axis
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-      },
-    },
-    interaction: {
-      mode: 'nearest',
-      axis: 'x',
-      intersect: false,
-    },
-  };
-
-  return (
-    <div className="chart-container">
-      <Line data={data} options={options} />
-    </div>
-  );
+    return (
+        <div className="search-box">
+            <input
+                className="search-input"
+                type="text"
+                value={query}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    handleSearch(e.target.value);
+                }}
+                placeholder="Search for a stock..."
+            />
+            {isLoading && <div className="loading-indicator">Loading...</div>}
+            {error && <div className="error-message">{error}</div>}
+            {results.length > 0 && (
+                <div className="search-dropdown">
+                    {results.map((result) => (
+                        <div key={result.symbol} className="search-dropdown-item" onClick={() => handleSelect(result.symbol)}>
+                            {result.name} ({result.symbol})
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
-export default StockChart;
+export default StockSearch;
